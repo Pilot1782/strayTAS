@@ -31,6 +31,7 @@ print("Starting")
 
 # start
 screenWidth, screenHeight = pg.size()
+print(f"Main screen size: {screenWidth}x{screenHeight}")
 
 
 # utilities
@@ -79,6 +80,9 @@ def press_down(_key):
     """
     one press, one release.
     accepts as many arguments as you want. e.g., press("left_arrow", "a","b").
+
+    :param _key: the name of the key to press
+    :return: None
     """
     win32api.keybd_event(VK_CODE[_key], 0, 0, 0)
 
@@ -86,28 +90,35 @@ def press_down(_key):
 def press_up(_key):
     """
     one press, one release.
-    :param _key:
-    :return:
+    :param _key: the name of the key to release
+    :return: None
     """
     win32api.keybd_event(VK_CODE[_key], 0, win32con.KEYEVENTF_KEYUP, 0)
 
 
 if __name__ == '__main__':
     try:
-        if "--sub" not in sys.argv:
-            from pynput.keyboard import Listener
-            listener = Listener(on_press=check_press)
-            listener.start()
-
-        # start()
-        pdi.press('enter')
-        wait(2)
-
         files = [
             # "prologue.txt",
             # "inside_walls.txt"
             "out.txt"
         ]
+
+        if "--sub" not in sys.argv:
+            from pynput.keyboard import Listener
+            listener = Listener(on_press=check_press)
+            listener.start()
+        elif "--play" in sys.argv[1]:
+            files = [
+                str(sys.argv[2:])
+            ]
+        elif len(sys.argv) > 1:
+            print("Unknown argument")
+
+        # start()
+        pdi.press('enter')
+        wait(2)
+
         for file in files:
             file = "captures/" + file
 

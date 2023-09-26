@@ -9,20 +9,24 @@ out = []
 """
 Format of output:
 ```
-\/ <key> <time>
-/\ <key> <time>
+\/ <key code> <time> any
+# comment
+/\ <key code> <time>
 ```
 
 <time> will always start at 0
     units are seconds
+<key code> is the key code of the key pressed
+any whater is put with a space after the time is ignored, this can be used to add comments
     
 `/\` indicated that <key> was released
 `\/` indicated that <key> was pressed down
 
 EX:
 ```
-\/ a 0.0
-/\ a 0.1
+\/ 41 0.0 `a` pressed
+# `a` is about to be released
+/\ 41 0.1 `a` released
 ```
 
 ie: `a` was held for 0.1 seconds
