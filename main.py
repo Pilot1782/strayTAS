@@ -1,11 +1,10 @@
 import sys
+import time
 
 import pyautogui as pg
 import pydirectinput as pdi
 import win32api
 import win32con
-
-import time
 
 from keys import VK_CODE
 
@@ -130,20 +129,17 @@ if __name__ == '__main__':
 
                     dur = float(now_time - prev_time)
 
-                    key = line[1]
-                    prev_key = prev_line[1]
+                    key = int(line[1])
+                    prev_key = int(prev_line[1])
 
-                    if prev_key.endswith("_l") or prev_key.endswith("_r"):
-                        prev_key = "left_" + prev_key[:-2] if prev_key.endswith("_l") else "right_" + prev_key[:-2]
-
-                    down = (VK_CODE[prev_key], 0, 0, 0)
-                    up = (VK_CODE[prev_key], 0, win32con.KEYEVENTF_KEYUP, 0)
+                    down = (prev_key, 0, 0, 0)
+                    up = (prev_key, 0, win32con.KEYEVENTF_KEYUP, 0)
 
                     if prev_line[0] == "/\\":
                         lines.append((up, dur))
                     else:
                         lines.append((down, dur))
-                    print(lines[-1], prev_line, (prev_line[0], prev_key, dur), f"Up: {lines[-1][0][2] == 2}")
+                    print(lines[-1], prev_line, f"Up: {lines[-1][0][2] == 2}")
 
                     prev_line = line
 
@@ -151,11 +147,8 @@ if __name__ == '__main__':
                         break
 
                 # write the final line
-                key = prev_line[1]
-                if key.endswith("_l") or key.endswith("_r"):
-                    key = "left_" + key[:-2] if key.endswith("_l") else "right_" + key[:-2]
-
-                lines.append(((VK_CODE[key], 0, win32con.KEYEVENTF_KEYUP, 0), 0))
+                key = int(prev_line[1])
+                lines.append(((key, 0, win32con.KEYEVENTF_KEYUP, 0), 0))
 
             wait_play()
             print(f'Playing `{file.split(".")[0].replace("_", " ")}`')
@@ -180,5 +173,4 @@ if __name__ == '__main__':
             press_up(k)
 
             """
-            ...
             """
