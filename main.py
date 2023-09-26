@@ -4,7 +4,6 @@ import pyautogui as pg
 import pydirectinput as pdi
 import win32api
 import win32con
-from pynput.keyboard import Listener, Key
 
 import time
 
@@ -50,8 +49,9 @@ def wait(duration):
             break
 
 
-def check_press(key):
-    if key == Key.esc:
+def check_press(_key):
+    from pynput.keyboard import Key
+    if _key == Key.esc:
         print("Exiting")
         global flag
         flag = True
@@ -95,8 +95,10 @@ def press_up(_key):
 
 if __name__ == '__main__':
     try:
-        listener = Listener(on_press=check_press)
-        listener.start()
+        if "--sub" not in sys.argv:
+            from pynput.keyboard import Listener
+            listener = Listener(on_press=check_press)
+            listener.start()
 
         # start()
         pdi.press('enter')
@@ -104,37 +106,56 @@ if __name__ == '__main__':
 
         files = [
             # "prologue.txt",
-            # "inside_walls.txt",
+            # "inside_walls.txt"
             "out.txt"
         ]
         for file in files:
             file = "captures/" + file
 
-            lines = []
+            lines: list[tuple[tuple, float]] = []
             prev_line = None
             with open(file, "r") as f:
                 for line in f:
                     if line.startswith("#"):
                         continue
 
-                    if prev_line is None:
-                        prev_line = line.split(" ")
-                        continue
-
                     line = line.split(" ")
+
+                    if prev_line is None:
+                        prev_line = line
+                        continue
 
                     now_time = float(line[2])
                     prev_time = float(prev_line[2])
 
-                    dur = now_time - prev_time
+                    dur = float(now_time - prev_time)
 
-                    lines.append([prev_line[0], prev_line[1], dur])
-                    print(lines[-1])
+                    key = line[1]
+                    prev_key = prev_line[1]
+
+                    if prev_key.endswith("_l") or prev_key.endswith("_r"):
+                        prev_key = "left_" + prev_key[:-2] if prev_key.endswith("_l") else "right_" + prev_key[:-2]
+
+                    down = (VK_CODE[prev_key], 0, 0, 0)
+                    up = (VK_CODE[prev_key], 0, win32con.KEYEVENTF_KEYUP, 0)
+
+                    if prev_line[0] == "/\\":
+                        lines.append((up, dur))
+                    else:
+                        lines.append((down, dur))
+                    print(lines[-1], prev_line, (prev_line[0], prev_key, dur), f"Up: {lines[-1][0][2] == 2}")
 
                     prev_line = line
 
                     if flag:
                         break
+
+                # write the final line
+                key = prev_line[1]
+                if key.endswith("_l") or key.endswith("_r"):
+                    key = "left_" + key[:-2] if key.endswith("_l") else "right_" + key[:-2]
+
+                lines.append(((VK_CODE[key], 0, win32con.KEYEVENTF_KEYUP, 0), 0))
 
             wait_play()
             print(f'Playing `{file.split(".")[0].replace("_", " ")}`')
@@ -143,20 +164,21 @@ if __name__ == '__main__':
                 if flag:
                     break
 
-                if line[0] == "/\\":
-                    press_up(line[1])
-                elif line[0] == "\\/":
-                    press_down(line[1])
-                else:
-                    print(f"Invalid line: {line}")
+                win32api.keybd_event(*line[0])
 
-                time.sleep(line[2])
+                time.sleep(line[1])
     finally:
         # release all keys
         for k in [
             "w", "a", "s", "d",
-            "space", "shift", "ctrl", "alt",
+            "space", "ctrl", "alt",
             "e", "q", "r", "f",
-            "tab"
+            "tab", "esc",
+            "1", "2",
+            "shift", "left_shift", "right_shift",
         ]:
-            pg.keyUp(k)
+            press_up(k)
+
+            """
+            ...
+            """

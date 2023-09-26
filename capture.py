@@ -1,3 +1,5 @@
+import subprocess
+import sys
 import time
 
 from pynput.keyboard import Listener, Key
@@ -26,10 +28,14 @@ EX:
 ie: `a` was held for 0.1 seconds
 """
 
+flag = False
+
 
 def process_key_press(key):
     t_press = time.time()
     if key == Key.esc:
+        global flag
+        flag = True
         return False
 
     key_name = str(key).replace("'", "").replace("Key.", "").lower()
@@ -52,12 +58,47 @@ def on_release(key):
     )
 
 
-try:
-    start = -1
-    with Listener(
-            on_press=process_key_press,
-            on_release=on_release) as listener:
-        listener.join()
-finally:
-    with open("captures/out.txt", "w") as f:
-        f.write("\n".join(out))
+def main_greedy():
+    try:
+        global start
+        start = -1
+        with Listener(
+                on_press=process_key_press,
+                on_release=on_release) as listener:
+            listener.join()
+    finally:
+        with open("captures/out.txt", "w") as f:
+            f.write("\n".join(out))
+
+
+def main():
+    try:
+        global start
+        start = -1
+        listener = Listener(
+                on_press=process_key_press,
+                on_release=on_release)
+        listener.start()
+    finally:
+        ...
+
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
+
+    if args and args[0] == "--cap":
+        print("Capturing...")
+
+        main()
+
+        pip = subprocess.Popen(["python", *args[1:], "--sub"])
+
+        while pip.poll() is None and not flag:
+            time.sleep(0.1)
+
+        pip.kill()
+
+        with open("captures/out.txt", "w") as f:
+            f.write("\n".join(out))
+    else:
+        main_greedy()
