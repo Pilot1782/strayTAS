@@ -104,6 +104,7 @@ if __name__ == '__main__':
             "out.txt"
         ]
 
+        # argument parsing
         if "--sub" not in sys.argv:
             from pynput.keyboard import Listener
             listener = Listener(on_press=check_press)
@@ -115,6 +116,7 @@ if __name__ == '__main__':
         elif len(sys.argv) > 1:
             print("Unknown argument")
 
+        # start the game
         # start()
         pdi.press('enter')
         wait(2)

@@ -38,7 +38,8 @@ flag = False
 def key_to_code(key):
     tp = str(type(key))
     key_code = key.value if tp == "<enum 'Key'>" else key
-    return str(key_code.vk)
+
+    return "{:03d}".format(key_code.vk)
 
 
 def key_to_name(key):
