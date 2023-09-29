@@ -7,7 +7,12 @@ This is a tool assisted speedrun of Stray, a game by BlueTwelve Studio. The TAS 
 1. Clone the repository
 2. Install [Python 3](https://www.python.org/downloads/)
 3. Install requirements: `pip install -r requirements.txt`
-4. Run the TAS: `python main.py`
+4. Edit the following settings:
+
+`Run` -> `Left Ctrl` (or any other key besides `shift`)
+`Auto Camera` -> `O`
+
+5. Run the TAS: `python main.py`
 
 ## Creating a TAS
 
@@ -17,23 +22,12 @@ This is a tool assisted speedrun of Stray, a game by BlueTwelve Studio. The TAS 
 ## Playing back a TAS
 
 1. Run `python main.py --play <path to TAS file>`
+2. Note: there is about 0.0006s (+/-0.0001) of error per key action
 
-## Format of TAS file
+## Editing a TAS
 
-The TAS file is a simple text file with the following format:
-
-```
-<key up/down> <key code> <timestamp starting from 0> <any additional notes>
-# comments are also supported
-```
-
-For example:
-
-```
-\/ 65 0
-# a is about to be released
-/\ 65 0.1
-```
+1. Open the TAS file with `tasEditor.py`
+2. The format is described in the header of `capture.py` [here](capture.py#L13-L34)
 
 Key codes can be found [here](https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes).
 

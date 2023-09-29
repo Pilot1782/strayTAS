@@ -3,3 +3,6 @@ pydirectinput>=1.0.4
 pynput>=1.7.6
 pypiwin32>=223
 pywin32>=306
+customtkinter>=5.2.0
+mouse>=0.7.1
+CTkListbox>=0.9

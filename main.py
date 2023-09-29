@@ -1,3 +1,4 @@
+import pickle
 import sys
 import time
 
@@ -96,12 +97,42 @@ def press_up(_key):
     win32api.keybd_event(VK_CODE[_key], 0, win32con.KEYEVENTF_KEYUP, 0)
 
 
+def parse_line(_event: tuple[int, float, int, int], duration: float) -> list:
+    """
+    :param duration: the duration of the event
+    :param _event: the line to parse
+    :return: the key to press, the duration to press it for
+    """
+    if _event[0] == 0x02:
+        print(f"Moving mouse by {_event[2]} and {_event[3]}")
+        # mouse movement
+        return [
+            False,
+            (_event[2], _event[3]),
+            duration,
+        ]
+    elif _event[0] == 0x01:
+        print(f"Releasing key {_event[2]}")
+        # key release
+        return [
+            True,
+            (int(_event[2]), 0, win32con.KEYEVENTF_KEYUP, 0),
+            duration
+        ]
+    elif _event[0] == 0x00:
+        print(f"Pressing key {_event[2]}")
+        # key press
+        return [
+            True,
+            (int(_event[2]), 0, 0, 0),
+            duration
+        ]
+
+
 if __name__ == '__main__':
     try:
         files = [
-            # "prologue.txt",
-            # "inside_walls.txt"
-            "out.txt"
+            "out.pkl"
         ]
 
         # argument parsing
@@ -118,72 +149,66 @@ if __name__ == '__main__':
 
         # start the game
         # start()
-        pdi.press('enter')
-        wait(2)
+        pdi.leftClick()
+        wait(0.5)
 
         for file in files:
             file = "captures/" + file
 
-            lines: list[tuple[tuple, float]] = []
+            # load the capture
+            lines = []
             prev_line = None
-            with open(file, "r") as f:
-                for line in f:
-                    if line.startswith("#"):
-                        continue
-
-                    line = line.split(" ")
-
-                    if prev_line is None:
-                        prev_line = line
-                        continue
-
-                    now_time = float(line[2])
-                    prev_time = float(prev_line[2])
-
-                    dur = float(now_time - prev_time)
-
-                    key = int(line[1])
-                    prev_key = int(prev_line[1])
-
-                    down = (prev_key, 0, 0, 0)
-                    up = (prev_key, 0, win32con.KEYEVENTF_KEYUP, 0)
-
-                    if prev_line[0] == "/\\":
-                        lines.append((up, dur))
-                    else:
-                        lines.append((down, dur))
-                    print(lines[-1], prev_line, f"Up: {lines[-1][0][2] == 2}")
-
+            f = pickle.load(open(file, "rb"))
+            for line in f:
+                if prev_line is None:
                     prev_line = line
+                    continue
 
-                    if flag:
-                        break
+                now_time = line[1]
+                prev_time = prev_line[1]
 
-                # write the final line
-                key = int(prev_line[1])
-                lines.append(((key, 0, win32con.KEYEVENTF_KEYUP, 0), 0))
+                dur = float(now_time - prev_time)
+
+                out = parse_line(prev_line, dur)
+
+                lines.append(out)
+
+                prev_line = line
+
+                if flag:
+                    break
+
+            # write the final line
+            out = parse_line(prev_line, 0)
+            lines.append(out)
 
             wait_play()
             print(f'Playing `{file.split(".")[0].replace("_", " ")}`')
 
+            # play the capture
             for line in lines:
                 if flag:
                     break
 
-                win32api.keybd_event(*line[0])
+                if line[0]:
+                    win32api.keybd_event(*line[1])
+                else:
+                    win32api.mouse_event(win32con.MOUSEEVENTF_MOVE, line[1][0], line[1][1], 0, 0)
 
-                time.sleep(line[1])
+                time.sleep(line[2])
     finally:
         # release all keys
         for k in [
             "w", "a", "s", "d",
-            "space", "ctrl", "alt",
+            "space", "alt",
             "e", "q", "r", "f",
             "tab", "esc",
             "1", "2",
             "shift", "left_shift", "right_shift",
+            "ctrl", "left_ctrl", "right_ctrl",
         ]:
             press_up(k)
+        print("Released all keys")
 
-            """
-            """
+        """
+        """
