@@ -6,3 +6,4 @@ pywin32>=306
 customtkinter>=5.2.0
 mouse>=0.7.1
 CTkListbox>=0.9
+keyboard>=0.13.5

@@ -1,13 +1,20 @@
+import argparse
 import pickle
+import queue
 import subprocess
 import sys
 import threading
 import time
 
+import keyboard
 import win32gui
-from pynput.keyboard import Listener, Key
+from pynput.keyboard import Listener, Key, KeyCode
 
-out = []
+from keys import VK_CODE
+
+KV_CODE = {v: k for k, v in VK_CODE.items()}
+
+out = queue.Queue()
 mouse = []
 
 """
@@ -33,123 +40,169 @@ Format of output:
 anything after the first 4 elements is ignored
 """
 
-flag = False
+record = False
+_exit = False
+start = -1
+last_mouse = None
+last_key = None
+ignore = [
+    Key.f1, Key.f2,
+    Key.esc
+]
 
 
-def key_to_code(key):
-    tp = str(type(key))
-    key_code = key.value if tp == "<enum 'Key'>" else key
-
-    return key_code.vk
-
-
-def key_to_name(key):
-    tp = str(type(key))
-    key_name = key.name if tp == "<enum 'Key'>" else key.char
-    return key_name
+def add_mouse(t: float, dx: int, dy: int):
+    out.put((
+        0x02,
+        t - start,
+        dx,
+        dy,
+    ))
 
 
-def process_key_press(key):
-    t_press = time.time()
+def check_press(key):
+    t = time.time()
+    global record
+    global start
+    global last_key
 
-    if key == Key.esc:
-        global flag
-        flag = True
-        return False
+    if record:
+        if key == Key.esc:
+            out.put((
+                0x00,
+                t - start,
+                0x1B,
+                0,
+                "esc"
+            ))
+        else:
+            code = key.vk if hasattr(key, "vk") else key.value.vk
+            name = KV_CODE[code]
 
-    key_value = key_to_code(key)
+            if last_key is None:
+                last_key = (code, name)
+            elif last_key == (code, name):
+                return
+            else:
+                last_key = (code, name)
 
-    if out and [out[-1][0], out[-1][2]] == [0x00, key_value]:
+            out.put((
+                0x00,
+                t - start,
+                int(code),
+                0,
+                name
+            ))
+
+
+def check_release(key: Key | KeyCode):
+    global last_key
+
+    if record is False:
         return
 
-    global start
-    if start == -1:
-        start = t_press
+    code = key.vk if hasattr(key, "vk") else key.value.vk
+    name = KV_CODE[code]
 
-    out.append((
-        0x00,
-        round(t_press - start, 4),
-        key_value,
-        0
-    ))
+    if last_key == (code, name):
+        last_key = None
 
-
-def on_release(key):
-    t = time.time()
-
-    key_value = key_to_code(key)
-
-    out.append((
+    out.put((
         0x01,
-        round(t - start, 4),
-        key_value,
-        0
+        time.time() - start,
+        int(code),
+        0,
+        name
     ))
 
 
-def moved(x, y, t):
-    global prev_pos
-    dx = x - prev_pos[0]
-    dy = y - prev_pos[1]
-    print(f"Recorded mouse position: ({x}, {y}) ({dx}, {dy})")
-    mouse.append((
-        0x02,
-        round(t - start, 3),
-        dx,
-        dy
-    ))
-    prev_pos = (x, y)
+def handle_keys():
+    """
+    Handle key presses as a thread
+    :return:
+    """
+
+    with Listener(on_press=check_press, on_release=check_release) as listener:
+        listener.join()
 
 
-def check_mouse():
-    global prev_pos
-    while start == -1:
+def handle_mouse():
+    """
+    Handle mouse movement as a thread
+    :return:
+    """
+    global last_mouse
+
+    while _exit is False:
         time.sleep(0.1)
 
-    while not flag:
-        x, y = win32gui.GetCursorPos()
-        t = time.time()
-        if x != prev_pos[0] or y != prev_pos[1]:
-            moved(x, y, t)
-            prev_pos = (x, y)
+        if record:
+            x, y = win32gui.GetCursorPos()
+            t = time.time()
+            if last_mouse is None:
+                last_mouse = (x, y)
+            elif (x, y) != last_mouse:
+                dx = x - last_mouse[0]
+                dy = y - last_mouse[1]
+
+                last_mouse = (x, y)
+                add_mouse(t, dx, dy)
+        else:
+            time.sleep(0.1)
 
 
 def main():
-    global start
-    start = -1
-    listener = Listener(
-        on_press=process_key_press,
-        on_release=on_release)
-    listener.start()
+    print("Press F1 to start recording, F2 to exit")
 
-    global prev_pos
-    prev_pos = win32gui.GetCursorPos()
-    threading.Thread(target=check_mouse).start()
+    key_thread = threading.Thread(target=handle_keys)
+    mouse_thread = threading.Thread(target=handle_mouse)
+
+    key_thread.start()
+    mouse_thread.start()
+
+
+def save(path: str = None):
+    global record, _exit
+    print("Saving...")
+    record = False
+    _exit = True
+    if path is None:
+        path = "captures/out.pkl"
+
+    pickle.dump(list(out.queue), open(path, "wb"))
+    print("Saved!")
+    sys.exit(0)
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    print("Capturing...")
+    argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Record key presses and mouse movements")
+    parser.add_argument("--cap", type=str, help="Run a file and save the resutl to a file")
+
+    args = parser.parse_args()
+
+
+    def toggle_record():
+        global record
+        record = not record
+        print(f"Recording: {record}")
+
+
+    # register key binds
+    keyboard.add_hotkey(hotkey="f1", callback=toggle_record)
+    keyboard.add_hotkey(hotkey="f2", callback=save)
+    keyboard.add_hotkey(hotkey="esc", callback=save)
+
     main()
+    proc = None
 
-    if args and args[0] == "--cap":
-        print(f"Running {' '.join(args[1:])}...")
+    if args.cap is not None:
+        proc = subprocess.Popen([args.cap, "--sub"])
 
-        pip = subprocess.Popen(["python", *args[1:], "--sub"])
-
-        while pip.poll() is None and not flag:
-            time.sleep(0.1)
-
-        pip.kill()
-
-    while not flag:
+    while not _exit:
         time.sleep(0.1)
 
-    out.extend(mouse)
-    out.sort(key=lambda _: _[1])
+    if args.cap is not None:
+        proc.kill()
 
-    pickle.dump(out, open("captures/out.pkl", "wb"))
-
-"""
-This is text that should be copied
-"""
+    save(None if args.cap is None else "out.pkl")

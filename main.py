@@ -1,3 +1,4 @@
+import json
 import pickle
 import sys
 import time
@@ -8,6 +9,9 @@ import win32api
 import win32con
 
 from keys import VK_CODE
+
+config = json.loads(open("config.json", "r").read())
+diff = config["diff"]
 
 # Chapters:
 # 1. Prologue
@@ -103,6 +107,11 @@ def parse_line(_event: tuple[int, float, int, int], duration: float) -> list:
     :param _event: the line to parse
     :return: the key to press, the duration to press it for
     """
+
+    duration += diff
+    if duration < 0:
+        duration = 0
+
     if _event[0] == 0x02:
         print(f"Moving mouse by {_event[2]} and {_event[3]}")
         # mouse movement
@@ -112,7 +121,7 @@ def parse_line(_event: tuple[int, float, int, int], duration: float) -> list:
             duration,
         ]
     elif _event[0] == 0x01:
-        print(f"Releasing key {_event[2]}")
+        print(f"Releasing key {_event[2]} {_event}")
         # key release
         return [
             True,
@@ -120,7 +129,7 @@ def parse_line(_event: tuple[int, float, int, int], duration: float) -> list:
             duration
         ]
     elif _event[0] == 0x00:
-        print(f"Pressing key {_event[2]}")
+        print(f"Pressing key {_event[2]} {_event}")
         # key press
         return [
             True,
@@ -149,8 +158,10 @@ if __name__ == '__main__':
 
         # start the game
         # start()
-        pdi.leftClick()
-        wait(0.5)
+        press_down("enter")
+        wait(0.1)
+        press_up("enter")
+        wait(1)
 
         for file in files:
             file = "captures/" + file
